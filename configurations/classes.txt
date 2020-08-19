@@ -1,0 +1,4 @@
+leaf
+fruit
+flower
+stem
