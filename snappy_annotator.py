@@ -8,7 +8,7 @@ import os
 import numpy as np
 import random
 import cv2
-from voc_save_load import save_to_voc, load_from_voc
+from voc_save_load import save_to_voc_xml, load_from_voc_xml
 
 
 def load_configs():
@@ -76,28 +76,10 @@ class App(anntoolkit.App):
         self.lx = 0
         self.ly = 0
 
-    def get_ann_opposite_corners(self):
+    def get_image_dims(self):
         k = self.paths[self.iter]
-        opposite_corners = []
-        for i in range(0, len(self.annotations[k])-1, 2):
-            opposite_corners.append((self.annotations[k][i][0], self.annotations[k][i+1][1]))
-            opposite_corners.append((self.annotations[k][i+1][0], self.annotations[k][i][1]))
-        return opposite_corners
-
-    # Resets variables when highlight is no longer visible: sets the selected annotation as the last one annotated
-    def reset_highlight(self):
-        k = self.paths[self.iter]
-        self.highlighted = False
-        if k in self.annotations and len(self.annotations[k]) > 0:
-            self.selected_annot = int(len(self.annotations[k])/2) - 1
-        else:
-            self.selected_annot = 0
-
-    # Creating due to fact that this appears in multiple locations: changing
-    # dataset layout may require referencing a file's full path differently
-    def get_annotation_path(self):
-        k = self.paths[self.iter]
-        return os.path.join(self.path, str(k[:k.find('.')]) + '_annotations.xml')
+        img = cv2.imread(os.path.join(self.path, k))
+        return img.shape
 
     # If the current sample contains an empty annotation, remove
     # it from the annotation list and delete the annotation file
@@ -108,60 +90,10 @@ class App(anntoolkit.App):
             if os.path.exists(self.get_annotation_path()):
                 os.remove(self.get_annotation_path())
 
-    # NOTE: This is specifically used for PlantCLEF 2015 dataset format
-    def get_PC15_metadata_category(self):
-        k = self.paths[self.iter]
-        xml = os.path.join(self.path, str(k[:k.find('.')]) + '.xml')
-        if os.path.exists(xml):
-            with open(xml, 'r') as x:
-                for line in x.readlines():
-                    if line.strip().startswith('<Content>'):
-                        return line.strip()[9:-10]
-            return '**no image label found**'
-        return '**no metadata xml file found**'
-
-    # Resets each bounding box within the current image to prepare for Pascal VOC format - dimensions are rounded
-    # to integers and smaller values of x and y are placed in first point, larger values in second point
-    def reset_annotation_boxes(self):
-        k = self.paths[self.iter]
-        if k in self.annotations:
-            annotation_k = self.annotations[k]
-            reset_annotation = []
-            for i in range(0, len(annotation_k) - 1, 2):
-                xmin = int(round(min(annotation_k[i][0], annotation_k[i+1][0])))
-                xmax = int(round(max(annotation_k[i][0], annotation_k[i+1][0])))
-                ymin = int(round(min(annotation_k[i][1], annotation_k[i+1][1])))
-                ymax = int(round(max(annotation_k[i][1], annotation_k[i+1][1])))
-                reset_annotation.append((xmin, ymin))
-                reset_annotation.append((xmax, ymax))
-            if len(annotation_k) % 2 == 1:
-                reset_annotation.append((int(round(annotation_k[-1][0])), int(round(annotation_k[-1][1]))))
-            self.annotations[k] = reset_annotation
-            return reset_annotation
-
-    def change_selected_label(self, key):
-        num = int(key)
-        if num > 0:  # 1 will be first item (index = 0), 2 will be second (index = 1), ...
-            num -= 1
-        else:  # 0 will be last, i.e. 10th, item (index = 9)
-            num = 9
-        if num < len(self.classes):
-            k = self.paths[self.iter]
-            self.def_label = self.classes[num]
-            if k in self.labels and len(self.labels[k]) > 0:
-                self.labels[k][self.selected_annot] = self.classes[num]
-                save_to_voc(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                            self.reset_annotation_boxes(), self.labels[k])
-
-    def get_image_dims(self):
-        k = self.paths[self.iter]
-        img = cv2.imread(os.path.join(self.path, k))
-        return img.shape
-
     # Loads in the annotations/labels for the current image, including height and width
     def load_current_im_info(self):
         k = self.paths[self.iter]
-        _, _, _, anns, lbls = load_from_voc(self.path, k)
+        _, _, anns, lbls = load_from_voc_xml(self.path, k)
         self.annotations[k] = anns
         self.labels[k] = lbls
         self.reset_highlight()
@@ -218,6 +150,76 @@ class App(anntoolkit.App):
         except ValueError:
             self.load_prev_not_annotated()
 
+    def change_selected_label(self, key):
+        num = int(key)
+        if num > 0:  # 1 will be first item (index = 0), 2 will be second (index = 1), ...
+            num -= 1
+        else:  # 0 will be last, i.e. 10th, item (index = 9)
+            num = 9
+        if num < len(self.classes):
+            k = self.paths[self.iter]
+            self.def_label = self.classes[num]
+            if k in self.labels and len(self.labels[k]) > 0:
+                self.labels[k][self.selected_annot] = self.classes[num]
+                save_to_voc_xml(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                self.reset_annotation_boxes(), self.labels[k])
+
+    # Created due to fact that this appears in multiple locations: changing
+    # dataset layout may require referencing a file's full path differently
+    def get_annotation_path(self):
+        k = self.paths[self.iter]
+        return os.path.join(self.path, str(k[:k.find('.')]) + '_annotations.xml')
+
+    # NOTE: This is specifically used for PlantCLEF 2015 dataset format
+    def get_PC15_metadata_category(self):
+        k = self.paths[self.iter]
+        xml = os.path.join(self.path, str(k[:k.find('.')]) + '.xml')
+        if os.path.exists(xml):
+            with open(xml, 'r') as x:
+                for line in x.readlines():
+                    if line.strip().startswith('<Content>'):
+                        return line.strip()[9:-10]
+            return '**no image label found**'
+        return '**no metadata xml file found**'
+
+    # Returns a list of the opposite corners of the original annotations, which is used to
+    # create the second pair of points for each bounding box
+    def get_ann_opposite_corners(self):
+        k = self.paths[self.iter]
+        opposite_corners = []
+        for i in range(0, len(self.annotations[k]) - 1, 2):
+            opposite_corners.append((self.annotations[k][i][0], self.annotations[k][i + 1][1]))
+            opposite_corners.append((self.annotations[k][i + 1][0], self.annotations[k][i][1]))
+        return opposite_corners
+
+    # Resets variables when highlight is no longer visible: sets the selected annotation as the last one annotated
+    def reset_highlight(self):
+        k = self.paths[self.iter]
+        self.highlighted = False
+        if k in self.annotations and len(self.annotations[k]) > 0:
+            self.selected_annot = int(len(self.annotations[k]) / 2) - 1
+        else:
+            self.selected_annot = 0
+
+    # Resets each bounding box within the current image to prepare for Pascal VOC format - dimensions are rounded
+    # to integers and smaller values of x and y are placed in first point, larger values in second point
+    def reset_annotation_boxes(self):
+        k = self.paths[self.iter]
+        if k in self.annotations:
+            annotation_k = self.annotations[k]
+            reset_annotation = []
+            for i in range(0, len(annotation_k) - 1, 2):
+                xmin = int(round(min(annotation_k[i][0], annotation_k[i + 1][0])))
+                xmax = int(round(max(annotation_k[i][0], annotation_k[i + 1][0])))
+                ymin = int(round(min(annotation_k[i][1], annotation_k[i + 1][1])))
+                ymax = int(round(max(annotation_k[i][1], annotation_k[i + 1][1])))
+                reset_annotation.append((xmin, ymin))
+                reset_annotation.append((xmax, ymax))
+            if len(annotation_k) % 2 == 1:
+                reset_annotation.append((int(round(annotation_k[-1][0])), int(round(annotation_k[-1][1]))))
+            self.annotations[k] = reset_annotation
+            return reset_annotation
+
     # Called once per frame. This is where things (including labels) are drawn on the image.
     def on_update(self):
         k = self.paths[self.iter]
@@ -225,8 +227,8 @@ class App(anntoolkit.App):
         self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 50)
         self.text("Key bindings:", 10, 140)
         for i, c in enumerate(self.classes):
-            self.text("{} - {}".format(i+1, c), 10, 170 + i*30)
-        self.text("Current label: {}".format(self.def_label), 10, 170 + 30*len(self.classes))
+            self.text("{} - {}".format(i + 1, c), 10, 170 + i * 30)
+        self.text("Current label: {}".format(self.def_label), 10, 170 + 30 * len(self.classes))
         if k in self.annotations:
             self.text("Points count: %d" % len(self.annotations[k]), 10, 80)
             for i, p in enumerate(self.annotations[k]):
@@ -285,15 +287,17 @@ class App(anntoolkit.App):
                     i = np.argmin(d)
                     if d[i] < 6:
                         self.moving_point = i
-                        i = int(i/2)*2
+                        i = int(i / 2) * 2
                         self.annotations[k][i] = opposite_points[i]
-                        self.annotations[k][i+1] = opposite_points[i+1]
+                        self.annotations[k][i + 1] = opposite_points[i + 1]
                 if self.hovered_box >= 0 and not self.moving_point:
-                    lower_diff = np.subtract((lx, ly), self.annotations[k][self.hovered_box*2])
-                    upper_diff = np.subtract((lx, ly), self.annotations[k][self.hovered_box*2+1])
+                    lower_diff = np.subtract((lx, ly), self.annotations[k][self.hovered_box * 2])
+                    upper_diff = np.subtract((lx, ly), self.annotations[k][self.hovered_box * 2 + 1])
                     self.moving_box = [lower_diff, upper_diff]
-                    self.selected_box_width = self.annotations[k][self.hovered_box*2+1][0] - self.annotations[k][self.hovered_box*2][0]
-                    self.selected_box_height = self.annotations[k][self.hovered_box*2+1][1] - self.annotations[k][self.hovered_box*2][1]
+                    self.selected_box_width = self.annotations[k][self.hovered_box * 2 + 1][0] - \
+                                              self.annotations[k][self.hovered_box * 2][0]
+                    self.selected_box_height = self.annotations[k][self.hovered_box * 2 + 1][1] - \
+                                               self.annotations[k][self.hovered_box * 2][1]
 
         # Upon release
         if not down:
@@ -302,15 +306,15 @@ class App(anntoolkit.App):
             if self.moving_box is not None:
                 self.hovered_box = -1
                 self.moving_box = None
-                save_to_voc(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                            self.reset_annotation_boxes(), self.labels[k])
+                save_to_voc_xml(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                self.reset_annotation_boxes(), self.labels[k])
                 self.selected_box_height, self.selected_box_width = None, None
             elif self.moving_point is not None:
                 self.annotations[k][self.moving_point] = (min(max(0, lx), self.im_width),
                                                           min(max(0, ly), self.im_height))
                 self.moving_point = None
-                save_to_voc(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                            self.reset_annotation_boxes(), self.labels[k])
+                save_to_voc_xml(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                self.reset_annotation_boxes(), self.labels[k])
             else:
                 self.annotations[k].append((min(max(0, lx), self.im_width), min(max(0, ly), self.im_height)))
                 if len(self.annotations[k]) % 2 == 0:
@@ -320,8 +324,8 @@ class App(anntoolkit.App):
                         self.labels[k] = [self.def_label]
                     else:
                         self.labels[k].append(self.def_label)
-                    save_to_voc(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels[k])
+                    save_to_voc_xml(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                    self.reset_annotation_boxes(), self.labels[k])
 
     # Whenever the mouse changes position
     def on_mouse_position(self, x, y, lx, ly):
@@ -330,7 +334,8 @@ class App(anntoolkit.App):
         k = self.paths[self.iter]
         if k in self.annotations:
             if self.moving_point is not None:
-                self.annotations[k][self.moving_point] = (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))
+                self.annotations[k][self.moving_point] = (
+                min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))
             # Highlight hovered box: smallest box hovered will be highlighted
             elif self.moving_box is not None:
                 # Limits movement of box to the inner bounds of the image
@@ -338,8 +343,8 @@ class App(anntoolkit.App):
                 lower_y = min(max(0, ly - self.moving_box[0][1]), self.im_height - self.selected_box_height)
                 upper_x = min(max(self.selected_box_width, lx - self.moving_box[1][0]), self.im_width)
                 upper_y = min(max(self.selected_box_height, ly - self.moving_box[1][1]), self.im_height)
-                self.annotations[k][self.hovered_box*2] = (lower_x, lower_y)
-                self.annotations[k][self.hovered_box*2+1] = (upper_x, upper_y)
+                self.annotations[k][self.hovered_box * 2] = (lower_x, lower_y)
+                self.annotations[k][self.hovered_box * 2 + 1] = (upper_x, upper_y)
             elif not self.moving_box and not self.new_box:
                 hovered_box_boxes = {}
                 boxes = [self.annotations[k][i:i + 2] for i in range(0, len(self.annotations[k]) - 1, 2)]
@@ -352,12 +357,15 @@ class App(anntoolkit.App):
                         x = b_xmax - b_xmin
                         y = b_ymax = b_ymin
                         hovered_box_boxes[i] = x * y
-                if hovered_box_boxes: # Finds index of the hovered box
-                    self.hovered_box = list(hovered_box_boxes.keys())[list(hovered_box_boxes.values()).index(min(list(hovered_box_boxes.values())))]
+                if hovered_box_boxes:  # Finds index of the hovered box
+                    self.hovered_box = list(hovered_box_boxes.keys())[
+                        list(hovered_box_boxes.values()).index(min(list(hovered_box_boxes.values())))]
                 else:
                     self.hovered_box = -1
             if len(self.annotations[k]) % 2 == 1:
-                self.new_box = [[self.annotations[k][-1], (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))], (0, 0, 255, 192), (0, 0, 255, 128)]
+                self.new_box = [
+                    [self.annotations[k][-1], (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))],
+                    (0, 0, 255, 192), (0, 0, 255, 128)]
             else:
                 self.new_box = None
 
@@ -383,29 +391,23 @@ class App(anntoolkit.App):
             elif key == anntoolkit.KeyBackspace:
                 k = self.paths[self.iter]
                 if self.highlighted and len(self.annotations[k]) > 1:
-                    self.annotations[k].pop(self.selected_annot*2)
-                    self.annotations[k].pop(self.selected_annot*2)
+                    self.annotations[k].pop(self.selected_annot * 2)
+                    self.annotations[k].pop(self.selected_annot * 2)
                     self.selected_annot -= 1
-                    save_to_voc(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels[k])
+                    save_to_voc_xml(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                    self.reset_annotation_boxes(), self.labels[k])
 
                 else:
                     if k in self.annotations and len(self.annotations[k]) > 0:
                         self.annotations[k] = self.annotations[k][:-1]
-                        self.remove_zero_annotations()
+                        # self.remove_zero_annotations()
                     if k in self.annotations and len(self.annotations[k]) % 2 == 1:
                         self.annotations[k].pop()
                         self.labels[k].pop()
                         self.new_box = None
-                        # self.new_box = [[self.annotations[k][-1],
-                        #                  (min(max(0, self.lx), self.im_width), min(max(0, self.ly),self.im_height))],
-                        #                 (0, 0, 255, 192), (0, 0, 255, 128)]
-                        save_to_voc(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                    self.reset_annotation_boxes(), self.labels[k])
+                        save_to_voc_xml(k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                        self.reset_annotation_boxes(), self.labels[k])
                         self.reset_highlight()
-            elif key == 'R':
-                self.iter = random.randrange(len(self.paths))
-                self.load_next()
             elif key == 'T':  # 'T' to toggle the labels on or off
                 self.labels_on = not self.labels_on
             elif str(key).isnumeric():
@@ -416,13 +418,13 @@ class App(anntoolkit.App):
                 if int(len(self.annotations[k])) > 1:
                     self.highlighted = True
                     self.selected_annot -= 1
-                    self.selected_annot = (int(len(self.annotations[k])/2) + self.selected_annot) % int(len(self.annotations[k])/2)
+                    self.selected_annot = (int(len(self.annotations[k]) / 2) + self.selected_annot) % int(len(self.annotations[k]) / 2)
             elif key == 'E':
                 k = self.paths[self.iter]
                 if int(len(self.annotations[k])) > 1:
                     self.highlighted = True
                     self.selected_annot += 1
-                    self.selected_annot = self.selected_annot % int(len(self.annotations[k])/2)
+                    self.selected_annot = self.selected_annot % int(len(self.annotations[k]) / 2)
 
 
 if __name__ == '__main__':
