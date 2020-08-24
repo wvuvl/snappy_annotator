@@ -49,6 +49,7 @@ class App(anntoolkit.App):
     def __init__(self):
         super(App, self).__init__(title='Snappy Annotator')
 
+        self.POINT_RADIUS = 6
         self.path, self.database, self.def_label = load_configs()
         self.paths = []
         for dirName, subdirList, fileList in os.walk(self.path):
@@ -122,15 +123,28 @@ class App(anntoolkit.App):
         while True:
             self.iter += 1
             self.iter = self.iter % len(self.paths)
+            self.load_current_im_info()
             k = self.paths[self.iter]
-            if k not in self.annotations:
-                break
-            if self.iter == 0:
+            if self.annotations[k] == [] or self.iter == 0:
                 break
         try:
             im = imageio.imread(os.path.join(self.path, self.paths[self.iter]))
             self.set_image(im)
+        except ValueError:
+            self.load_next_not_annotated()
+
+    def load_next_annotated(self):
+        self.remove_zero_annotations()
+        while True:
+            self.iter += 1
+            self.iter = self.iter % len(self.paths)
             self.load_current_im_info()
+            k = self.paths[self.iter]
+            if not self.annotations[k] == [] or self.iter == 0:
+                break
+        try:
+            im = imageio.imread(os.path.join(self.path, self.paths[self.iter]))
+            self.set_image(im)
         except ValueError:
             self.load_next_not_annotated()
 
@@ -139,10 +153,25 @@ class App(anntoolkit.App):
         while True:
             self.iter -= 1
             self.iter = (self.iter + len(self.paths)) % len(self.paths)
+            self.load_current_im_info()
             k = self.paths[self.iter]
-            if k not in self.annotations:
+            if self.annotations[k] == [] or self.iter == 0:
                 break
-            if self.iter == 0:
+        try:
+            im = imageio.imread(os.path.join(self.path, self.paths[self.iter]))
+            self.set_image(im)
+            self.load_current_im_info()
+        except ValueError:
+            self.load_prev_not_annotated()
+
+    def load_prev_annotated(self):
+        self.remove_zero_annotations()
+        while True:
+            self.iter -= 1
+            self.iter = (self.iter + len(self.paths)) % len(self.paths)
+            self.load_current_im_info()
+            k = self.paths[self.iter]
+            if not self.annotations[k] == [] or self.iter == 0:
                 break
         try:
             im = imageio.imread(os.path.join(self.path, self.paths[self.iter]))
@@ -234,11 +263,8 @@ class App(anntoolkit.App):
             self.text("Points count: %d" % len(self.annotations[k]), 10, 120)
             for i, p in enumerate(self.annotations[k]):
                 if i == self.hovered_point:
-                    self.point(*p, (0, 255, 0, 250), radius=8)
-                elif i == self.moving_point:
-                    self.point(*p, (0, 255, 0, 250))
-                else:
-                    self.point(*p, (255, 0, 0, 250))
+                    self.point(*p, (127, 127, 255, 159), radius=self.POINT_RADIUS*self.scale)
+                self.point(*p, (255, 0, 0, 250))
             for i, p in enumerate(self.get_ann_opposite_corners()):
                 self.point(*p, (255, 0, 0, 250))
 
@@ -258,9 +284,9 @@ class App(anntoolkit.App):
                     elif self.labels[k][i] == self.classes[2]:
                         self.box(box, (249, 21, 218, 255), (249, 21, 218, 120))
                     elif self.labels[k][i] == self.classes[3]:
-                        self.box(box, (255, 128, 0, 255), (255, 128, 0, 120))
+                        self.box(box, (255, 127, 0, 255), (255, 127, 0, 120))
                     elif self.labels[k][i] == self.classes[4]:
-                        self.box(box, (128, 128, 128, 255), (128, 128, 128, 120))
+                        self.box(box, (127, 127, 127, 255), (127, 127, 127, 120))
                     else:
                         self.box(box, (0, 255, 0, 250), (100, 255, 100, 120))
                     if self.labels_on:
@@ -363,9 +389,9 @@ class App(anntoolkit.App):
                     d_op = opposite_points - point
                     d_op = np.linalg.norm(d_op, axis=1)
                     ind_op = np.argmin(d_op)
-                    if d_p[ind_p] < d_op[ind_op] and d_p[ind_p] < 8:
+                    if d_p[ind_p] < d_op[ind_op] and d_p[ind_p] < self.POINT_RADIUS:
                         self.hovered_point = ind_p
-                    elif d_op[ind_op] < d_p[ind_p] and d_op[ind_op] < 8:
+                    elif d_op[ind_op] < self.POINT_RADIUS:
                         self.hovered_point = ind_op
                         ind_op = int(ind_op / 2) * 2  # Round down to even number
                         self.annotations[k][ind_op] = opposite_points[ind_op]
@@ -389,6 +415,10 @@ class App(anntoolkit.App):
                 self.load_next_not_annotated()
             elif key == anntoolkit.KeyDown or key == 'S':
                 self.load_prev_not_annotated()
+            elif key == ',':
+                self.load_prev_annotated()
+            elif key == '.':
+                self.load_next_annotated()
             elif key == anntoolkit.KeyDelete:
                 k = self.paths[self.iter]
                 if k in self.annotations:
