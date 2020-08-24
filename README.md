@@ -9,7 +9,8 @@ Annotation tool specifically built for training on Pascal VOC data. Built upon t
 - Pan: right click
 - Zoom: mouse wheel
 - Change images: left key/right key (or 'a'/'d')
-- Go to next/previous _un-annotated_ image: using up key/down key (or 'w'/'s')
+- Go to next/previous _annotated_ image: '.'/','
+- Go to next/previous _un-annotated_ image: up key/down key (or 'w'/'s')
 - Set annotation class: '1'-'0' on keyboard (limit of 10/can be edited using 'configurations/classes.txt')
 - Select annotation: left click while hovering annotation
 - Select previous annotation: 'q'
