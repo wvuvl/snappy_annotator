@@ -55,6 +55,7 @@ class App(anntoolkit.App):
             self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
                            or x.endswith('.jpeg') or x.endswith('.png')]
         self.paths.sort()
+        assert len(self.paths) != 0, "Can not find images in the specified path %s" % self.path
         self.iter = -1
         self.im_height = 0
         self.im_width = 0
