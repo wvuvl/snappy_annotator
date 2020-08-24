@@ -7,7 +7,6 @@ import imageio
 import os
 import numpy as np
 import random
-import cv2
 from voc_save_load import save_to_voc_xml, load_from_voc_xml
 
 
@@ -78,9 +77,7 @@ class App(anntoolkit.App):
         self.ly = 0
 
     def get_image_dims(self):
-        k = self.paths[self.iter]
-        img = cv2.imread(os.path.join(self.path, k))
-        return img.shape
+        return self.image.shape
 
     # If the current sample contains an empty annotation, remove
     # it from the annotation list and delete the annotation file
@@ -98,8 +95,7 @@ class App(anntoolkit.App):
         self.annotations[k] = anns
         self.labels[k] = lbls
         self.reset_highlight()
-        self.im_height = self.get_image_dims()[0]
-        self.im_width = self.get_image_dims()[1]
+        self.im_height, self.im_width, _ = self.get_image_dims()
 
     def load_next(self):
         self.remove_zero_annotations()
