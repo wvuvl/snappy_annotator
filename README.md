@@ -23,7 +23,8 @@ Annotation tool specifically built for training on Pascal VOC data. Built upon t
 
 To download, use the following lines of code:
 
-    git clone https://github.com/facebookresearch/detectron2.git
+    git clone https://github.com/wvuvl/snappy_annotator
+    cd snappy_annotator
     pip install -r requirements.txt
 
 For quicker startup, default settings are saved within two config files in the 'configurations' folder: 'classes.txt and configs.txt'.
