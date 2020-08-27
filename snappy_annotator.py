@@ -61,7 +61,7 @@ class App(anntoolkit.App):
             self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
                            or x.endswith('.jpeg') or x.endswith('.png')]
         self.paths = self.sort_by_species()
-        print(self.paths)
+        # self.paths.sort()  # Use this line instead of above to sort by file name
         self.iter = -1
         self.k = None
         self.im_height = 0
@@ -108,6 +108,7 @@ class App(anntoolkit.App):
             return pickle.load(sorted_pickle)
 
         else:
+            print('Sorting files for modified dataset...\nNote that this should only happen once.')
             for ind, file in enumerate(self.paths):
                 file_species = ''
                 with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r') as f:
@@ -120,6 +121,7 @@ class App(anntoolkit.App):
             sorted_pickle = open(sorted_file, 'wb')
             sfs = np.asarray(sort_file_species)[:, 0]
             pickle.dump(sfs, sorted_pickle)
+            print('Completed.')
             return sfs
 
     # Loads in the annotations/labels for the current image, including height and width
