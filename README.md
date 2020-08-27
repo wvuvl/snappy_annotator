@@ -3,7 +3,7 @@ Annotation tool specifically built for training on Pascal VOC data. Built upon t
 
 ## Quickstart: Controls
 
-##### NOTE: Annotations are saved each time a label is changed or  whenever a box is created, deleted, moved, or resized. New annotations are saved with the same name as the image without the extension, with '\_annotations.xml' added to the end.
+##### NOTE: Annotations are saved each time a label is changed or  whenever a box is created, deleted, moved, or resized. New annotations are saved with the same name as the image without the extension, with '\_annotations.xml' added to the end. Additionally, all changes on the current image can be undone by typing 'p', so long as the current image isn't changed to a different one.
 
 - Set annotation (bounding box) point: left click
 - Pan: right click
@@ -18,6 +18,7 @@ Annotation tool specifically built for training on Pascal VOC data. Built upon t
 - Toggle labels (on screen) on/off: 't'
 - Remove selected annotation: backspace
 - Remove all annotations for image: delete
+- Undo all changes to current image annotations: 'p' (see note above)
 
 ## Quickstart: Setup
 
