@@ -6,6 +6,7 @@ import anntoolkit
 import imageio
 import os
 import copy
+import pickle
 import numpy as np
 import random
 import cv2
@@ -16,6 +17,7 @@ def load_configs():
     lib_path = ''
     db = 'Unknown'
     default_lbl = '1'
+    database_chgd = False
     if os.path.exists(os.path.join('configurations', 'configs.txt')):
         with open(os.path.join('configurations', 'configs.txt'), 'r') as c:
             for line in c.readlines():
@@ -26,7 +28,9 @@ def load_configs():
                     db = line[9:]
                 if line.startswith('DEF_LABEL:'):
                     default_lbl = line[10:]
-    return lib_path, db, default_lbl
+                if line.startswith('DB_CHANGED:'):
+                    database_chgd = line[11:] == 'True'
+    return lib_path, db, default_lbl, database_chgd
 
 
 def load_classes():
@@ -51,12 +55,13 @@ class App(anntoolkit.App):
         super(App, self).__init__(title='Snappy Annotator')
 
         self.POINT_RADIUS = 6
-        self.path, self.database, self.def_label = load_configs()
+        self.path, self.database, self.def_label, self.db_changed = load_configs()
         self.paths = []
         for dirName, subdirList, fileList in os.walk(self.path):
             self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
                            or x.endswith('.jpeg') or x.endswith('.png')]
-        self.paths.sort()
+        self.paths = self.sort_by_species()
+        print(self.paths)
         self.iter = -1
         self.k = None
         self.im_height = 0
@@ -91,6 +96,31 @@ class App(anntoolkit.App):
     def remove_zero_annotations(self):
         if self.k is not None and self.annot == [] and os.path.exists(self.get_annotation_path()):
             os.remove(self.get_annotation_path())
+
+    # NOTE: Specifically for PlantCLEF2015 data format
+    # NOTE: This will only work as long as the jpgs and PlantCLEF xmls have not been modified since last use, or if
+    # the sort tag in the config file has not been edited
+    def sort_by_species(self):
+        species = {}
+        sorted_file = 'sorted_filenames_by_species.pkl'
+        if os.path.exists(sorted_file) and not self.db_changed:
+            sorted_pickle = open(sorted_file, 'rb')
+            return pickle.load(sorted_pickle)
+
+        else:
+            for ind, file in enumerate(self.paths):
+                file_species = ''
+                with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r') as f:
+                    for line in f.readlines():
+                        if line.strip().startswith('<Species>'):
+                            file_species = line.strip()[9:-10]
+
+                species[self.paths[ind]] = file_species
+            sort_file_species = sorted(species.items(), key=lambda x: x[1])
+            sorted_pickle = open(sorted_file, 'wb')
+            sfs = np.asarray(sort_file_species)[:, 0]
+            pickle.dump(sfs, sorted_pickle)
+            return sfs
 
     # Loads in the annotations/labels for the current image, including height and width
     def load_current_im_info(self):
