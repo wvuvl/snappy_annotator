@@ -31,7 +31,8 @@ To download, use the following lines of code:
 For quicker startup, default settings are saved within two config files in the 'configurations' folder: 'classes.txt and configs.txt'.
 
 1. In 'classes.txt', the default classes can be set, where the first line references key 1, the second references key 2, and so on, with the 10th referencing key 
-2. In 'configs.txt', the current default configurations are the path of the directory containing the files, the database to reference in the .xml files produced, and the default label when the program starts up.
+2. In 'configs.txt', the current default configurations are the path of the directory containing the files, the database to reference in the .xml files produced, and the default label when the program starts up. An additional line, "DB_CHANGED:<boolean>" (simply replace <boolean> with "True" or "False"), can be inserted to control whether or not file sorting needs to occur at the beginning of the function. The default, False, is to only sort if the corresponding "sorted_filenames_by_species.pkl" file exists in the root directory.
+    - For the current setup, species names are used to sort images. For faster startup, a function is used to save this sorted order. This can easily be removed in the code by deleting the line above the commented line in \_\_init\_\_ in snappy_annotator.py, and uncommenting the commented line.
 
 ## Current Features
 
