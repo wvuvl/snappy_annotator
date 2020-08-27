@@ -205,6 +205,16 @@ class App(anntoolkit.App):
             return '**no image label found**'
         return '**no metadata xml file found**'
 
+    def get_PC15_species(self):
+        xml = os.path.join(self.path, str(self.k[:self.k.find('.')]) + '.xml')
+        if os.path.exists(xml):
+            with open(xml, 'r') as x:
+                for line in x.readlines():
+                    if line.strip().startswith('<Species>'):
+                        return line.strip()[9:-10]
+            return '**no image species found**'
+        return '**no metadata xml file found**'
+
     # Returns a list of the opposite corners of the original annotations, which is used to
     # create the second pair of points for each bounding box
     def get_ann_opposite_corners(self):
@@ -249,12 +259,13 @@ class App(anntoolkit.App):
     # Called once per frame. This is where things (including labels) are drawn on the image.
     def on_update(self):
         self.text(self.k, 10, 30)
-        self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 60)
+        self.text("Species: %s" % self.get_PC15_species(), 10, 60)
+        self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 90)
+        self.text("Current label: {}".format(self.def_label), 10, 120)
+        self.text("Points count: %d" % len(self.annot), 10, 150)
         self.text("Key bindings:", self.width - 10, 30, alignment=anntoolkit.Alignment.Right)
         for i, c in enumerate(self.classes):
             self.text("{} - {}".format(i + 1, c), self.width - 10, 70 + i * 30, alignment=anntoolkit.Alignment.Right)
-        self.text("Current label: {}".format(self.def_label), 10, 90)
-        self.text("Points count: %d" % len(self.annot), 10, 120)
         for i, p in enumerate(self.annot):
             if i == self.hovered_point:
                 self.point(*p, (127, 127, 255, 159), radius=self.POINT_RADIUS * self.scale)
@@ -286,8 +297,8 @@ class App(anntoolkit.App):
                 if self.labels_on:
                     box = reset_box(box)
                     self.text_loc(self.labels[i], *box[0], (0, 10, 0, 250), (150, 255, 150, 150))
-            if self.new_box:
-                self.box(*self.new_box)
+        if self.new_box:
+            self.box(*self.new_box)
 
     def on_mouse_button(self, down, x, y, lx, ly):
         # Upon click
@@ -445,6 +456,8 @@ class App(anntoolkit.App):
                     self.selected_annot = self.selected_annot % int(len(self.annot) / 2)
             elif key == 'P':
                 self.undo_current_image_changes()
+                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                                self.reset_annotation_boxes(), self.labels)
 
 
 if __name__ == '__main__':
