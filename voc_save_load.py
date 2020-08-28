@@ -12,9 +12,6 @@ error_msg = colored.fg("red") + colored.attr("bold")
 
 # Takes annotation and other data for current image and translates into a Pascal VOC-formatted .xml file.
 def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels):
-    p = filename.find('.')
-    with open(os.path.join(folder, filename[:p] + '_annotations.xml'), "w") as x:
-        pass
 
     xml = et.Element('annotation')
     fold = et.SubElement(xml, 'folder')

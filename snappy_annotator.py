@@ -13,6 +13,10 @@ import cv2
 from voc_save_load import save_to_voc_xml, load_from_voc_xml
 
 
+LIB_PATH_ERROR = 'Error: Directory specified not found. Please ensure \'LIBRARY_PATH:\' line in ' \
+                 '\'configurations/configs.txt\' is followed by a legitimate directory.'
+
+
 def load_configs():
     lib_path = ''
     db = 'Unknown'
@@ -23,7 +27,7 @@ def load_configs():
             for line in c.readlines():
                 line = line.strip()
                 if line.startswith('LIBRARY_PATH:'):
-                    lib_path = line[13:]
+                    lib_path = line[13:].strip()
                 if line.startswith('DATABASE:'):
                     db = line[9:]
                 if line.startswith('DEF_LABEL:'):
@@ -57,9 +61,12 @@ class App(anntoolkit.App):
         self.POINT_RADIUS = 6
         self.path, self.database, self.def_label, self.db_changed = load_configs()
         self.paths = []
-        for dirName, subdirList, fileList in os.walk(self.path):
-            self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
-                           or x.endswith('.jpeg') or x.endswith('.png')]
+        if os.path.exists(self.path):
+            for dirName, subdirList, fileList in os.walk(self.path):
+                self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
+                               or x.endswith('.jpeg') or x.endswith('.png')]
+        else:
+            raise IOError(LIB_PATH_ERROR)
         self.paths = self.sort_by_species()
         print(len(self.paths))
         # self.paths.sort()  # Use this line instead of above to sort by file name
@@ -144,7 +151,8 @@ class App(anntoolkit.App):
         # print("Width: {}".format(self.im_width))
         # print(len(self.xml_dims))
         # if len(self.xml_dims) == 3:
-        #     print("xml dimensions - height: {}; width: {}; depth: {}".format(self.xml_dims[1], self.xml_dims[0], self.xml_dims[2]))
+        #     print("xml dimensions - height: {}; width: {}; depth: {}"
+        #           .format(self.xml_dims[1], self.xml_dims[0], self.xml_dims[2]))
 
     def load_next(self):
         self.remove_zero_annotations()
