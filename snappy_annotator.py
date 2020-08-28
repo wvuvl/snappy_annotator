@@ -66,6 +66,7 @@ class App(anntoolkit.App):
         self.k = None
         self.im_height = 0
         self.im_width = 0
+        self.xml_dims = ()
         self.classes = load_classes()
         self.annot = []
         self.labels = []
@@ -111,10 +112,11 @@ class App(anntoolkit.App):
             print('Sorting files for modified dataset...\nNote that this should only happen once.')
             for ind, file in enumerate(self.paths):
                 file_species = ''
-                with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r') as f:
-                    for line in f.readlines():
-                        if line.strip().startswith('<Species>'):
-                            file_species = line.strip()[9:-10]
+                if os.path.exists(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml')):
+                    with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r') as f:
+                        for line in f.readlines():
+                            if line.strip().startswith('<Species>'):
+                                file_species = line.strip()[9:-10]
 
                 species[self.paths[ind]] = file_species
             sort_file_species = sorted(species.items(), key=lambda x: x[1])
@@ -127,7 +129,7 @@ class App(anntoolkit.App):
     # Loads in the annotations/labels for the current image, including height and width
     def load_current_im_info(self):
         self.k = self.paths[self.iter]
-        _, _, anns, lbls = load_from_voc_xml(self.path, self.k)
+        _, _, self.xml_dims, anns, lbls = load_from_voc_xml(self.path, self.k)
         self.annot = anns
         self.labels = lbls
         self.preserved_annotations = copy.deepcopy(anns)
@@ -135,6 +137,11 @@ class App(anntoolkit.App):
         self.reset_highlight()
         self.im_height = self.get_image_dims()[0]
         self.im_width = self.get_image_dims()[1]
+        # print("Height: {}".format(self.im_height))
+        # print("Width: {}".format(self.im_width))
+        # print(len(self.xml_dims))
+        # if len(self.xml_dims) == 3:
+        #     print("xml dimensions - height: {}; width: {}; depth: {}".format(self.xml_dims[1], self.xml_dims[0], self.xml_dims[2]))
 
     def load_next(self):
         self.remove_zero_annotations()
