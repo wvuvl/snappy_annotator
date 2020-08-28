@@ -61,6 +61,7 @@ class App(anntoolkit.App):
             self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
                            or x.endswith('.jpeg') or x.endswith('.png')]
         self.paths = self.sort_by_species()
+        print(len(self.paths))
         # self.paths.sort()  # Use this line instead of above to sort by file name
         self.iter = -1
         self.k = None
@@ -113,7 +114,7 @@ class App(anntoolkit.App):
             for ind, file in enumerate(self.paths):
                 file_species = ''
                 if os.path.exists(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml')):
-                    with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r') as f:
+                    with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r', encoding='utf-8') as f:
                         for line in f.readlines():
                             if line.strip().startswith('<Species>'):
                                 file_species = line.strip()[9:-10]
