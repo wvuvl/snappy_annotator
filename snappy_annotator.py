@@ -121,7 +121,9 @@ class App(anntoolkit.App):
                 species[self.paths[ind]] = file_species
             sort_file_species = sorted(species.items(), key=lambda x: x[1])
             sorted_pickle = open(sorted_file, 'wb')
-            sfs = np.asarray(sort_file_species)[:, 0]
+            sfs = np.asarray(sort_file_species)
+            if len(sfs.shape) > 1:
+                sfs = sfs[:, 0]
             pickle.dump(sfs, sorted_pickle)
             print('Completed.')
             return sfs
