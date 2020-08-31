@@ -239,14 +239,14 @@ class App(anntoolkit.App):
                 save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
                                 self.reset_annotation_boxes(), self.labels)
 
-    def rotate_annotations(self, clockwise=True):
+    def rotate_annotations(self, heightwise=True):
         for i in range(len(self.annot)):
             old_x = self.annot[i][0]
             old_y = self.annot[i][1]
-            if clockwise:
+            if heightwise:
                 self.annot[i] = (self.im_height - old_y, old_x)
             else:
-                self.annot[i] = (old_y, self.im_height - old_x)
+                self.annot[i] = (self.im_width - old_y, old_x)
 
     # Created due to fact that this appears in multiple locations: changing
     # dataset layout may require referencing a file's full path differently
@@ -514,7 +514,7 @@ class App(anntoolkit.App):
                     self.selected_annot += 1
                     self.selected_annot = self.selected_annot % int(len(self.annot) / 2)
             elif key == 'U':
-                self.rotate_annotations(clockwise=False)
+                self.rotate_annotations(heightwise=False)
                 save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
                                 self.reset_annotation_boxes(), self.labels)
             elif key == 'I':
