@@ -18,6 +18,9 @@ Annotation tool specifically built for training on Pascal VOC data. Built upon t
 - Toggle labels (on screen) on/off: 't'
 - Remove selected annotation: backspace
 - Remove all annotations for image: delete
+- Rotate annotations (useful for when transitioning from old tool) 
+    - 'u' for width-wise (centered about image's width), CW rotation
+    - 'i' for height-wise, CW rotation
 - Undo all changes to current image annotations: 'p' (see note above)
 
 ## Quickstart: Setup
