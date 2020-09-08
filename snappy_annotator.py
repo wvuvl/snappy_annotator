@@ -11,7 +11,6 @@ import numpy as np
 import cv2
 from voc_save_load import save_to_voc_xml, load_from_voc_xml
 
-
 LIB_PATH_ERROR = 'Error: Directory specified not found. Please ensure \'LIBRARY_PATH:\' line in ' \
                  '\'configurations/configs.txt\' is followed by a legitimate directory.'
 
@@ -62,12 +61,13 @@ class App(anntoolkit.App):
         self.paths = []
         if os.path.exists(self.path):
             for dirName, subdirList, fileList in os.walk(self.path):
-                self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if x.endswith('.jpg')
+                self.paths += [os.path.relpath(os.path.join(dirName, x), self.path) for x in fileList if
+                               x.endswith('.jpg')
                                or x.endswith('.jpeg') or x.endswith('.png')]
         else:
             raise IOError(LIB_PATH_ERROR)
         self.paths = self.sort_by_species()
-        print(len(self.paths))
+        print("There are {} images in this dataset.".format(len(self.paths)))
         # self.paths.sort()  # Use this line instead of above to sort by file name
         if os.path.exists(os.path.join('configurations', 'iter.txt')):
             with open(os.path.join('configurations', 'iter.txt'), 'r') as it:
@@ -107,7 +107,7 @@ class App(anntoolkit.App):
         if self.k is not None and self.annot == [] and os.path.exists(self.get_annotation_path()):
             os.remove(self.get_annotation_path())
 
-    # NOTE: Specifically for PlantCLEF2015 data format
+    # NOTE: Specifically for PlantCLEF2015 data format - sorts into species and then metadata
     # NOTE: This will only work as long as the jpgs and PlantCLEF xmls have not been modified since last use, or if
     # the sort tag in the config file has not been edited
     def sort_by_species(self):
@@ -121,11 +121,16 @@ class App(anntoolkit.App):
             print('Sorting files for modified dataset...\nNote that this should only happen once.')
             for ind, file in enumerate(self.paths):
                 file_species = ''
+                meta = ''
                 if os.path.exists(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml')):
-                    with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r', encoding='utf-8') as f:
+                    with open(os.path.join(self.path, str(self.paths[ind][:self.paths[ind].find('.')]) + '.xml'), 'r',
+                              encoding='utf-8') as f:
                         for line in f.readlines():
                             if line.strip().startswith('<Species>'):
                                 file_species = line.strip()[9:-10]
+                            if line.strip().startswith('<Content>'):
+                                meta = line.strip()[9:-10]
+                file_species = file_species + meta
 
                 species[self.paths[ind]] = file_species
             sort_file_species = sorted(species.items(), key=lambda x: x[1])
@@ -150,12 +155,6 @@ class App(anntoolkit.App):
         self.reset_highlight()
         self.im_height = self.get_image_dims()[0]
         self.im_width = self.get_image_dims()[1]
-        # print("Height: {}".format(self.im_height))
-        # print("Width: {}".format(self.im_width))
-        # print(len(self.xml_dims))
-        # if len(self.xml_dims) == 3:
-        #     print("xml dimensions - height: {}; width: {}; depth: {}"
-        #           .format(self.xml_dims[1], self.xml_dims[0], self.xml_dims[2]))
 
     def load_next(self):
         self.remove_zero_annotations()
@@ -234,7 +233,6 @@ class App(anntoolkit.App):
                         self.reset_annotation_boxes(), self.labels)
         with open(os.path.join('configurations', 'iter.txt'), 'w') as it:
             it.write(str(self.iter))
-
 
     def change_selected_label(self, key):
         num = int(key)
@@ -394,7 +392,6 @@ class App(anntoolkit.App):
                 self.save_progress()
                 self.selected_box_height, self.selected_box_width = None, None
             elif self.moving_point is not None:
-                print("Moving point: {}; image: {}".format(self.moving_point, self.k))
                 self.annot[self.moving_point] = (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))
                 self.moving_point = None
                 self.save_progress()
@@ -411,7 +408,6 @@ class App(anntoolkit.App):
     def on_mouse_position(self, x, y, lx, ly):
         # Dragging point
         if self.moving_point is not None:
-            print("MP: {}; image: {}".format(self.moving_point, self.k))
             self.annot[self.moving_point] = (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))
         # Highlight hovered box: smallest box hovered will be highlighted
         elif self.moving_box is not None:
