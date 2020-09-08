@@ -264,7 +264,7 @@ class App(anntoolkit.App):
     def get_PC15_metadata_category(self):
         xml = os.path.join(self.path, str(self.k[:self.k.find('.')]) + '.xml')
         if os.path.exists(xml):
-            with open(xml, 'r') as x:
+            with open(xml, 'r', encoding='utf-8') as x:
                 for line in x.readlines():
                     if line.strip().startswith('<Content>'):
                         return line.strip()[9:-10]
@@ -274,7 +274,7 @@ class App(anntoolkit.App):
     def get_PC15_species(self):
         xml = os.path.join(self.path, str(self.k[:self.k.find('.')]) + '.xml')
         if os.path.exists(xml):
-            with open(xml, 'r') as x:
+            with open(xml, 'r', encoding='utf-8') as x:
                 for line in x.readlines():
                     if line.strip().startswith('<Species>'):
                         return line.strip()[9:-10]
