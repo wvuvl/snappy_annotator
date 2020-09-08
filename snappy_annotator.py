@@ -8,7 +8,6 @@ import os
 import copy
 import pickle
 import numpy as np
-import random
 import cv2
 from voc_save_load import save_to_voc_xml, load_from_voc_xml
 
@@ -70,7 +69,11 @@ class App(anntoolkit.App):
         self.paths = self.sort_by_species()
         print(len(self.paths))
         # self.paths.sort()  # Use this line instead of above to sort by file name
-        self.iter = -1
+        if os.path.exists(os.path.join('configurations', 'iter.txt')):
+            with open(os.path.join('configurations', 'iter.txt'), 'r') as it:
+                self.iter = int(it.readline().strip()) - 1
+        else:
+            self.iter = -1
         self.k = None
         self.im_height = 0
         self.im_width = 0
@@ -93,8 +96,6 @@ class App(anntoolkit.App):
         self.preserved_labels = []
 
         # Cheating by doing this
-        self.lx = 0
-        self.ly = 0
 
     def get_image_dims(self):
         img = cv2.imread(os.path.join(self.path, self.k))
@@ -134,6 +135,8 @@ class App(anntoolkit.App):
                 sfs = sfs[:, 0]
             pickle.dump(sfs, sorted_pickle)
             print('Completed.')
+            if os.path.exists(os.path.join('configurations', 'iter.txt')):
+                os.remove(os.path.join('configurations', 'iter.txt'))
             return sfs
 
     # Loads in the annotations/labels for the current image, including height and width
@@ -226,6 +229,13 @@ class App(anntoolkit.App):
         except ValueError:
             self.load_prev_not_annotated()
 
+    def save_progress(self):
+        save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
+                        self.reset_annotation_boxes(), self.labels)
+        with open(os.path.join('configurations', 'iter.txt'), 'w') as it:
+            it.write(str(self.iter))
+
+
     def change_selected_label(self, key):
         num = int(key)
         if num > 0:  # 1 will be first item (index = 0), 2 will be second (index = 1), ...
@@ -236,8 +246,7 @@ class App(anntoolkit.App):
             self.def_label = self.classes[num]
             if len(self.labels) > 0:
                 self.labels[self.selected_annot] = self.classes[num]
-                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels)
+                self.save_progress()
 
     def rotate_annotations(self, heightwise=True):
         for i in range(len(self.annot)):
@@ -285,8 +294,10 @@ class App(anntoolkit.App):
 
     # Resets variables when highlight is no longer visible: sets the selected annotation as the last one
     def reset_highlight(self):
+        self.hovered_point = None
         self.moving_point = None
         self.highlighted = False
+        self.hovered_box = -1
         if len(self.annot) > 0:
             self.selected_annot = int(len(self.annot) / 2) - 1
         else:
@@ -380,14 +391,13 @@ class App(anntoolkit.App):
             if self.moving_box is not None:
                 self.hovered_box = -1
                 self.moving_box = None
-                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels)
+                self.save_progress()
                 self.selected_box_height, self.selected_box_width = None, None
             elif self.moving_point is not None:
+                print("Moving point: {}; image: {}".format(self.moving_point, self.k))
                 self.annot[self.moving_point] = (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))
                 self.moving_point = None
-                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels)
+                self.save_progress()
                 self.hovered_point = None
             else:
                 self.annot.append((min(max(0, lx), self.im_width), min(max(0, ly), self.im_height)))
@@ -395,15 +405,13 @@ class App(anntoolkit.App):
                     self.reset_highlight()
                     self.new_box = None
                     self.labels.append(self.def_label)
-                    save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                    self.reset_annotation_boxes(), self.labels)
+                    self.save_progress()
 
     # Whenever the mouse changes position
     def on_mouse_position(self, x, y, lx, ly):
-        self.lx = lx
-        self.ly = ly
         # Dragging point
         if self.moving_point is not None:
+            print("MP: {}; image: {}".format(self.moving_point, self.k))
             self.annot[self.moving_point] = (min(max(0, lx), self.im_width), min(max(0, ly), self.im_height))
         # Highlight hovered box: smallest box hovered will be highlighted
         elif self.moving_box is not None:
@@ -484,8 +492,7 @@ class App(anntoolkit.App):
                     self.annot.pop(self.selected_annot * 2)
                     self.annot.pop(self.selected_annot * 2)
                     self.selected_annot -= 1
-                    save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                    self.reset_annotation_boxes(), self.labels)
+                    self.save_progress()
 
                 else:
                     if len(self.annot) > 0:
@@ -495,8 +502,7 @@ class App(anntoolkit.App):
                         self.annot.pop()
                         self.labels.pop()
                         self.new_box = None
-                        save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                        self.reset_annotation_boxes(), self.labels)
+                        self.save_progress()
                         self.reset_highlight()
             elif key == 'T':  # 'T' to toggle the labels on or off
                 self.labels_on = not self.labels_on
@@ -515,16 +521,13 @@ class App(anntoolkit.App):
                     self.selected_annot = self.selected_annot % int(len(self.annot) / 2)
             elif key == 'U':
                 self.rotate_annotations(heightwise=False)
-                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels)
+                self.save_progress()
             elif key == 'I':
                 self.rotate_annotations()
-                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels)
+                self.save_progress()
             elif key == 'P':
                 self.undo_current_image_changes()
-                save_to_voc_xml(self.k, self.path, os.getcwd(), self.database, self.get_image_dims(),
-                                self.reset_annotation_boxes(), self.labels)
+                self.save_progress()
 
 
 if __name__ == '__main__':
