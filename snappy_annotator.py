@@ -91,12 +91,12 @@ class App(anntoolkit.App):
         self.selected_box_height = None
         self.highlighted = False
         self.selected_annot = -1
+        # variable to determine if current image was annotated when opened, in order to updated counts appropriately
+        self.initially_annotated = None
         self.load_next()
         self.preserved_annotations = []
         self.preserved_labels = []
         self.annotated_images = self.get_annotations_count()
-        # variable to determine if current image was annotated when opened, in order to updated counts appropriately
-        self.initially_annotated = False
 
     def get_image_dims(self):
         img = cv2.imread(os.path.join(self.path, self.k))
@@ -151,17 +151,22 @@ class App(anntoolkit.App):
         if self.k is not None:
             if os.path.exists(os.path.join(self.path, self.k[:self.k.find('.')] + '_annotations.xml')):
                 if not self.initially_annotated:
+                    # print(self.initially_annotated)
+                    print('currently false')
                     self.annotated_images += 1
             else:
                 if self.initially_annotated:
+                    print('currently true')
+                    # print(self.initially_annotated)
                     self.annotated_images -= 1
 
         self.k = self.paths[self.iter]
-        if self.k is not None:
-            if os.path.exists(os.path.join(self.path, self.k[:self.k.find('.')] + '_annotations.xml')):
-                self.initially_annotated = True
-            else:
-                self.initially_annotated = False
+        if os.path.exists(os.path.join(self.path, self.k[:self.k.find('.')] + '_annotations.xml')):
+            self.initially_annotated = True
+            print('set to true')
+        else:
+            self.initially_annotated = False
+            print('set to false')
         _, _, self.xml_dims, anns, lbls = load_from_voc_xml(self.path, self.k)
         self.annot = anns
         self.labels = lbls
@@ -354,10 +359,10 @@ class App(anntoolkit.App):
         self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 90)
         self.text("Current label: {}".format(self.def_label), 10, 120)
         self.text("Points count: %d" % len(self.annot), 10, 150)
-        annot = self.get_annotations_count()
+        self.text("%s" % str(self.initially_annotated), 10, 300)
         self.text("Images in dataset: %d" % len(self.paths), self.width - 10, 30, alignment=anntoolkit.Alignment.Right)
-        self.text("Annotated images: %d" % annot, self.width - 10, 60, alignment=anntoolkit.Alignment.Right)
-        self.text("Unannotated images: %d" % (len(self.paths) - annot), self.width - 10, 90, alignment=anntoolkit.Alignment.Right)
+        self.text("Annotated images: %d" % self.annotated_images, self.width - 10, 60, alignment=anntoolkit.Alignment.Right)
+        self.text("Unannotated images: %d" % (len(self.paths) - self.annotated_images), self.width - 10, 90, alignment=anntoolkit.Alignment.Right)
         self.text("Key bindings:", self.width - 10, 140, alignment=anntoolkit.Alignment.Right)
         for i, c in enumerate(self.classes):
             self.text("{} - {}".format(i + 1, c), self.width - 10, 170 + i * 30, alignment=anntoolkit.Alignment.Right)
