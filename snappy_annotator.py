@@ -67,8 +67,8 @@ class App(anntoolkit.App):
         else:
             raise IOError(LIB_PATH_ERROR)
         self.paths = self.sort_by_species()
-        print("There are {} images in this dataset.".format(len(self.paths)))
         # self.paths.sort()  # Use this line instead of above to sort by file name
+        print("There are {} images in this dataset.".format(len(self.paths)))
         if os.path.exists(os.path.join('configurations', 'iter.txt')):
             with open(os.path.join('configurations', 'iter.txt'), 'r') as it:
                 self.iter = int(it.readline().strip()) - 1
@@ -94,8 +94,6 @@ class App(anntoolkit.App):
         self.load_next()
         self.preserved_annotations = []
         self.preserved_labels = []
-
-        # Cheating by doing this
 
     def get_image_dims(self):
         img = cv2.imread(os.path.join(self.path, self.k))
@@ -281,6 +279,18 @@ class App(anntoolkit.App):
             return '**no image species found**'
         return '**no metadata xml file found**'
 
+    def get_annotations_count(self):
+        annotated = 0
+        unannotated = 0
+        for file in os.listdir(self.path):
+            if file.endswith('.jpg') or file.endswith('.png') or file.endswith('.jpeg'):
+
+                if os.path.exists(os.path.join(self.path, file[:file.find('.')] + '_annotations.xml')):
+                    annotated += 1
+                else:
+                    unannotated += 1
+        return annotated, unannotated
+
     # Returns a list of the opposite corners of the original annotations, which is used to
     # create the second pair of points for each bounding box
     def get_ann_opposite_corners(self):
@@ -331,9 +341,13 @@ class App(anntoolkit.App):
         self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 90)
         self.text("Current label: {}".format(self.def_label), 10, 120)
         self.text("Points count: %d" % len(self.annot), 10, 150)
-        self.text("Key bindings:", self.width - 10, 30, alignment=anntoolkit.Alignment.Right)
+        annot, unannot = self.get_annotations_count()
+        self.text("Images in dataset: %d" % len(self.paths), self.width - 10, 30, alignment=anntoolkit.Alignment.Right)
+        self.text("Annotated images: %d" % annot, self.width - 10, 60, alignment=anntoolkit.Alignment.Right)
+        self.text("Unannotated images: %d" % unannot, self.width - 10, 90, alignment=anntoolkit.Alignment.Right)
+        self.text("Key bindings:", self.width - 10, 140, alignment=anntoolkit.Alignment.Right)
         for i, c in enumerate(self.classes):
-            self.text("{} - {}".format(i + 1, c), self.width - 10, 70 + i * 30, alignment=anntoolkit.Alignment.Right)
+            self.text("{} - {}".format(i + 1, c), self.width - 10, 170 + i * 30, alignment=anntoolkit.Alignment.Right)
         for i, p in enumerate(self.annot):
             if i == self.hovered_point:
                 self.point(*p, (127, 127, 255, 159), radius=self.POINT_RADIUS * self.scale)
