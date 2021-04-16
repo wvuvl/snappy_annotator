@@ -11,9 +11,12 @@ import numpy as np
 import cv2
 from voc_save_load import save_to_voc_xml, load_from_voc_xml
 
+import json
+
 LIB_PATH_ERROR = 'Error: Directory specified not found. Please ensure \'LIBRARY_PATH:\' line in ' \
                  '\'configurations/configs.txt\' is followed by a legitimate directory.'
-FILE_EXT = '_annotations.xml'
+PREV_ANNOT_EXT = '_annotations.xml'
+FILE_EXT = '_od_annotations.xml'
 
 
 def load_configs():
@@ -21,7 +24,9 @@ def load_configs():
     db = 'Unknown'
     default_lbl = '1'
     database_chgd = False
-    obs_rank = '0'
+    prediction_pth = ''
+    prediction_thrsh = 0.5
+    obs_rank = '-1'
     obs_rank_found = False
     if os.path.exists(os.path.join('configurations', 'configs.txt')):
         with open(os.path.join('configurations', 'configs.txt'), 'r') as c:
@@ -35,14 +40,18 @@ def load_configs():
                     default_lbl = line[10:]
                 if line.startswith('DB_CHANGED:'):
                     database_chgd = line[11:] == 'True'
+                if line.startswith('PREDICTIONS_PATH:'):
+                    prediction_pth = line[17:]
+                if line.startswith('PREDICTION_THRESH:'):
+                    prediction_thrsh = float(line[18:])
                 if line.startswith('OBSERVATION_RANK:'):
                     obs_rank = int(line[20:])
                     obs_rank_found = True
         if not obs_rank_found:
-            print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is'
-                  'currently un-set. Please update config file with line \'OBSERVATION_RANK:\', followed'
+            print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is '
+                  'currently un-set. Please update config file with line \'OBSERVATION_RANK:\', followed '
                   'by corresponding number')
-    return lib_path, db, default_lbl, database_chgd, obs_rank
+    return lib_path, db, default_lbl, database_chgd, prediction_pth, prediction_thrsh, obs_rank
 
 
 def load_classes():
@@ -67,7 +76,7 @@ class App(anntoolkit.App):
         super(App, self).__init__(title='Snappy Annotator')
 
         self.POINT_RADIUS = 6
-        self.path, self.database, self.def_label, self.db_changed, self.observation_rank = load_configs()
+        self.path, self.database, self.def_label, self.db_changed, self.pred_path, self.prediction_thresh, self.observation_rank = load_configs()
         self.paths = []
         if os.path.exists(self.path):
             for dirName, subdirList, fileList in os.walk(self.path):
@@ -89,8 +98,11 @@ class App(anntoolkit.App):
         self.im_width = 0
         self.xml_dims = ()
         self.classes = load_classes()
+        self.od_instances = self.load_json_predictions()
         self.annot = []
         self.labels = []
+        self.prev_annot = []
+        self.prev_labels = []
         self.labels_on = True
         self.new_box = None
         self.hovered_point = None
@@ -107,6 +119,27 @@ class App(anntoolkit.App):
         self.preserved_annotations = []
         self.preserved_labels = []
         self.annotated_images = self.get_annotations_count()
+
+    def load_json_predictions(self):
+        if os.path.exists(self.pred_path):
+            with open(self.pred_path) as json_file:
+                instances = json.load(json_file)
+            return instances
+
+    def load_json_annotations(self):
+        anns = []
+        lbls = []
+        if os.path.exists(os.path.join(self.path, self.k[:self.k.find('.')] + FILE_EXT)):
+            _, _, _, anns, lbls = load_from_voc_xml(self.path, self.k, FILE_EXT)
+        else:
+            for inst in range(len(self.od_instances)):
+                if self.od_instances[inst]['image_id'] == self.k[:self.k.find('.')] and \
+                        self.od_instances[inst]['score'] > self.prediction_thresh:
+                    json_bbox = self.od_instances[inst]['bbox']
+                    anns.append([int(json_bbox[0]), int(json_bbox[1])])
+                    anns.append([int(json_bbox[0] + json_bbox[2]), int(json_bbox[1] + json_bbox[3])])
+                    lbls.append(self.classes[self.od_instances[inst]['category_id'] - 1])
+        return anns, lbls
 
     def get_image_dims(self):
         img = cv2.imread(os.path.join(self.path, self.k))
@@ -177,7 +210,10 @@ class App(anntoolkit.App):
         else:
             self.initially_annotated = False
             # print('set to false')
-        _, _, self.xml_dims, anns, lbls = load_from_voc_xml(self.path, self.k, FILE_EXT)
+        # print(self.k[:self.k.find('.')])
+
+        anns, lbls = self.load_json_annotations()
+        _, _, _, self.prev_annot, self.prev_labels = load_from_voc_xml(self.path, self.k, PREV_ANNOT_EXT)
         self.annot = anns
         self.labels = lbls
         self.preserved_annotations = copy.deepcopy(anns)
@@ -389,26 +425,34 @@ class App(anntoolkit.App):
             if len(box) == 2:
                 if self.hovered_box == i:
                     self.box(box, (255, 255, 255, 255), (255, 255, 255, 50))
+                # if self.selected_annot == i:
+                #     self.box(box, (0, 0, 255, 255), (0, 0, 0, 0))
                 if self.selected_annot == i and self.highlighted:  # When we are on selected box
                     self.box(box, (255, 255, 255, 255), (255, 255, 255, 128))
                 # Colors implemented for first 5 labels. More can be implemented if desired; can also change colors
                 elif self.labels[i] == self.classes[0]:
-                    self.box(box, (0, 255, 0, 255), (0, 255, 0, 120))
+                    self.box(box, (0, 255, 0, 0), (0, 255, 0, 120))
                 elif self.labels[i] == self.classes[1]:
-                    self.box(box, (255, 0, 0, 255), (255, 0, 0, 120))
+                    self.box(box, (255, 0, 0, 0), (255, 0, 0, 120))
                 elif self.labels[i] == self.classes[2]:
-                    self.box(box, (249, 21, 218, 255), (249, 21, 218, 120))
+                    self.box(box, (249, 21, 218, 0), (249, 21, 218, 120))
                 elif self.labels[i] == self.classes[3]:
-                    self.box(box, (255, 127, 0, 255), (255, 127, 0, 120))
+                    self.box(box, (127, 127, 127, 0), (1, 50, 32, 120))
                 elif self.labels[i] == self.classes[4]:
-                    self.box(box, (127, 127, 127, 255), (127, 127, 127, 120))
+                    self.box(box, (1, 50, 32, 120), (1, 50, 32, 180))
                 else:
                     self.box(box, (0, 255, 0, 250), (100, 255, 100, 120))
                 if self.labels_on:
                     box = reset_box(box)
-                    self.text_loc(self.labels[i], *box[0], (0, 10, 0, 250), (150, 255, 150, 150))
+                    self.text_loc(self.labels[i], *box[0], (0, 10, 0, 250), (150, 255, 150, 255))
         if self.new_box:
             self.box(*self.new_box)
+        prev_boxes = [self.prev_annot[i:i + n] for i in range(0, len(self.prev_annot), n)]
+        for i, box in enumerate(prev_boxes):
+            if len(box) == 2:
+                self.box(box, (255, 255, 255, 127), (255, 255, 255, 85))
+                if self.labels_on:
+                    self.text_loc(self.prev_labels[i], *box[0], (0, 10, 0, 250), (150, 150, 150, 150))
 
     def on_mouse_button(self, down, x, y, lx, ly):
         # Upon click
@@ -425,6 +469,7 @@ class App(anntoolkit.App):
                     self.selected_box_height = self.annot[self.hovered_box * 2 + 1][1] - \
                                                self.annot[self.hovered_box * 2][1]
                     self.selected_annot = self.hovered_box
+                    self.highlighted = True
 
         # Upon release
         if not down:
@@ -508,15 +553,21 @@ class App(anntoolkit.App):
     def on_keyboard(self, key, down, mods):
         if down:
             if key == anntoolkit.KeyLeft or key == 'A':
+                self.save_progress()
                 self.load_prev()
             elif key == anntoolkit.KeyRight or key == 'D':
+                self.save_progress()
                 self.load_next()
             elif key == anntoolkit.KeyUp or key == 'W':
+                self.save_progress()
                 self.load_next_not_annotated()
             elif key == anntoolkit.KeyDown or key == 'S':
+                self.save_progress()
                 self.load_prev_not_annotated()
+                self.save_progress()
             elif key == ',':
                 self.load_prev_annotated()
+                self.save_progress()
             elif key == '.':
                 self.load_next_annotated()
             elif key == anntoolkit.KeyDelete:
@@ -525,17 +576,16 @@ class App(anntoolkit.App):
                 if os.path.exists(self.get_annotation_path()):
                     os.remove(self.get_annotation_path())
                 self.reset_highlight()
-            elif key == anntoolkit.KeyBackspace:
+            elif key == anntoolkit.KeyBackspace or key == ' ':
                 if self.highlighted and len(self.annot) > 1:
                     self.annot.pop(self.selected_annot * 2)
                     self.annot.pop(self.selected_annot * 2)
+                    self.labels.pop(self.selected_annot)
                     self.selected_annot -= 1
                     self.save_progress()
-
                 else:
                     if len(self.annot) > 0:
                         self.annot = self.annot[:-1]
-                        # self.remove_zero_annotations()
                     if len(self.annot) % 2 == 1:
                         self.annot.pop()
                         self.labels.pop()
