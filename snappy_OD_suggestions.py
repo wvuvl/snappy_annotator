@@ -26,6 +26,7 @@ def load_configs():
     database_chgd = False
     prediction_pth = ''
     prediction_thrsh = 0.5
+    iou_thrsh = 0.75
     obs_rank = '-1'
     obs_rank_found = False
     if os.path.exists(os.path.join('configurations', 'configs.txt')):
@@ -47,11 +48,13 @@ def load_configs():
                 if line.startswith('OBSERVATION_RANK:'):
                     obs_rank = int(line[20:])
                     obs_rank_found = True
+                if line.startswith('IOU_THRESH:'):
+                    iou_thrsh = float(line[11])
         if not obs_rank_found:
             print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is '
                   'currently un-set. Please update config file with line \'OBSERVATION_RANK:\', followed '
                   'by corresponding number')
-    return lib_path, db, default_lbl, database_chgd, prediction_pth, prediction_thrsh, obs_rank
+    return lib_path, db, default_lbl, database_chgd, prediction_pth, prediction_thrsh, obs_rank, iou_thrsh
 
 
 def load_classes():
@@ -73,10 +76,11 @@ def reset_box(bbox):
 
 class App(anntoolkit.App):
     def __init__(self):
-        super(App, self).__init__(title='Snappy Annotator')
+        super(App, self).__init__(title='Snappy Annotator - OD-Assisted Annotation')
 
         self.POINT_RADIUS = 6
-        self.path, self.database, self.def_label, self.db_changed, self.pred_path, self.prediction_thresh, self.observation_rank = load_configs()
+        self.path, self.database, self.def_label, self.db_changed,\
+        self.pred_path, self.prediction_thresh, self.observation_rank, self.iou_thresh = load_configs()
         self.paths = []
         if os.path.exists(self.path):
             for dirName, subdirList, fileList in os.walk(self.path):
@@ -120,6 +124,24 @@ class App(anntoolkit.App):
         self.preserved_labels = []
         self.annotated_images = self.get_annotations_count()
 
+    def calculate_iou_to_previous(self, pred_bbox):
+        max_iou = 0
+        adjusted_pb = [(int(pred_bbox[0]), int(pred_bbox[1])),
+                       (int(pred_bbox[0] + pred_bbox[2]), int(pred_bbox[1] + pred_bbox[3]))]
+        print('current box: {}'.format(adjusted_pb))
+        boxes = [self.prev_annot[i:i + 2] for i in range(0, len(self.prev_annot), 2)]
+        for i, box in enumerate(boxes):
+            print('previous box: {}'.format(box))
+            area_1 = (adjusted_pb[1][0] - adjusted_pb[0][0]) * (adjusted_pb[1][1] - adjusted_pb[0][1])
+            area_2 = (box[1][0] - box[0][0]) * (box[1][1] - box[0][1])
+            intersection = (min(adjusted_pb[1][0], box[1][0]) - max(adjusted_pb[0][0], box[0][0])) * \
+                           (min(adjusted_pb[1][1], box[1][1]) - max(adjusted_pb[0][1], box[0][1]))
+            iou = intersection / (area_1 + area_2 - intersection)
+            max_iou = max(max_iou, iou)
+            print(iou)
+        print('Max IoU: {}'.format(max_iou))
+        return max_iou
+
     def load_json_predictions(self):
         if os.path.exists(self.pred_path):
             with open(self.pred_path) as json_file:
@@ -134,12 +156,14 @@ class App(anntoolkit.App):
         else:
             for inst in range(len(self.od_instances)):
                 if self.od_instances[inst]['image_id'] == self.k[:self.k.find('.')] and \
-                        self.od_instances[inst]['score'] > self.prediction_thresh:
+                        self.od_instances[inst]['score'] > self.prediction_thresh and \
+                        self.calculate_iou_to_previous(self.od_instances[inst]['bbox']) < self.iou_thresh:
                     json_bbox = self.od_instances[inst]['bbox']
                     anns.append([int(json_bbox[0]), int(json_bbox[1])])
                     anns.append([int(json_bbox[0] + json_bbox[2]), int(json_bbox[1] + json_bbox[3])])
                     lbls.append(self.classes[self.od_instances[inst]['category_id'] - 1])
         return anns, lbls
+
 
     def get_image_dims(self):
         img = cv2.imread(os.path.join(self.path, self.k))
@@ -212,8 +236,8 @@ class App(anntoolkit.App):
             # print('set to false')
         # print(self.k[:self.k.find('.')])
 
-        anns, lbls = self.load_json_annotations()
         _, _, _, self.prev_annot, self.prev_labels = load_from_voc_xml(self.path, self.k, PREV_ANNOT_EXT)
+        anns, lbls = self.load_json_annotations()
         self.annot = anns
         self.labels = lbls
         self.preserved_annotations = copy.deepcopy(anns)
@@ -408,7 +432,7 @@ class App(anntoolkit.App):
         self.text("%s" % str(self.initially_annotated), 10, 300)
         self.text("Images in dataset: %d" % len(self.paths), self.width - 10, 30, alignment=anntoolkit.Alignment.Right)
         self.text("Annotated images: %d" % self.annotated_images, self.width - 10, 60, alignment=anntoolkit.Alignment.Right)
-        self.text("Unannotated images: %d" % (len(self.paths) - self.annotated_images), self.width - 10, 90, alignment=anntoolkit.Alignment.Right)
+        self.text("Unannotated/unchanged images: %d" % (len(self.paths) - self.annotated_images), self.width - 10, 90, alignment=anntoolkit.Alignment.Right)
         self.text("Key bindings:", self.width - 10, 140, alignment=anntoolkit.Alignment.Right)
         for i, c in enumerate(self.classes):
             self.text("{} - {}".format(i + 1, c), self.width - 10, 170 + i * 30, alignment=anntoolkit.Alignment.Right)
@@ -419,14 +443,11 @@ class App(anntoolkit.App):
         for i, p in enumerate(self.get_ann_opposite_corners()):
             self.point(*p, (255, 0, 0, 250))
 
-        n = 2
-        boxes = [self.annot[i:i + n] for i in range(0, len(self.annot), n)]
+        boxes = [self.annot[i:i + 2] for i in range(0, len(self.annot), 2)]
         for i, box in enumerate(boxes):
             if len(box) == 2:
                 if self.hovered_box == i:
                     self.box(box, (255, 255, 255, 255), (255, 255, 255, 50))
-                # if self.selected_annot == i:
-                #     self.box(box, (0, 0, 255, 255), (0, 0, 0, 0))
                 if self.selected_annot == i and self.highlighted:  # When we are on selected box
                     self.box(box, (255, 255, 255, 255), (255, 255, 255, 128))
                 # Colors implemented for first 5 labels. More can be implemented if desired; can also change colors
@@ -447,7 +468,7 @@ class App(anntoolkit.App):
                     self.text_loc(self.labels[i], *box[0], (0, 10, 0, 250), (150, 255, 150, 255))
         if self.new_box:
             self.box(*self.new_box)
-        prev_boxes = [self.prev_annot[i:i + n] for i in range(0, len(self.prev_annot), n)]
+        prev_boxes = [self.prev_annot[i:i + 2] for i in range(0, len(self.prev_annot), 2)]
         for i, box in enumerate(prev_boxes):
             if len(box) == 2:
                 self.box(box, (255, 255, 255, 127), (255, 255, 255, 85))
@@ -578,10 +599,12 @@ class App(anntoolkit.App):
                 self.reset_highlight()
             elif key == anntoolkit.KeyBackspace or key == ' ':
                 if self.highlighted and len(self.annot) > 1:
+                    print(self.selected_annot)
                     self.annot.pop(self.selected_annot * 2)
                     self.annot.pop(self.selected_annot * 2)
                     self.labels.pop(self.selected_annot)
-                    self.selected_annot -= 1
+                    # self.selected_annot -= 1
+                    self.reset_highlight()
                     self.save_progress()
                 else:
                     if len(self.annot) > 0:
@@ -616,6 +639,7 @@ class App(anntoolkit.App):
             elif key == 'P':
                 self.undo_current_image_changes()
                 self.save_progress()
+                self.load_json_annotations()
 
 
 if __name__ == '__main__':

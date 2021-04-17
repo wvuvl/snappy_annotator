@@ -383,8 +383,7 @@ class App(anntoolkit.App):
         for i, p in enumerate(self.get_ann_opposite_corners()):
             self.point(*p, (255, 0, 0, 250))
 
-        n = 2
-        boxes = [self.annot[i:i + n] for i in range(0, len(self.annot), n)]
+        boxes = [self.annot[i:i + 2] for i in range(0, len(self.annot), 2)]
         for i, box in enumerate(boxes):
             if len(box) == 2:
                 if self.hovered_box == i:
@@ -525,11 +524,12 @@ class App(anntoolkit.App):
                 if os.path.exists(self.get_annotation_path()):
                     os.remove(self.get_annotation_path())
                 self.reset_highlight()
-            elif key == anntoolkit.KeyBackspace:
+            elif key == anntoolkit.KeyBackspace or key == ' ':
                 if self.highlighted and len(self.annot) > 1:
                     self.annot.pop(self.selected_annot * 2)
                     self.annot.pop(self.selected_annot * 2)
-                    self.selected_annot -= 1
+                    # self.selected_annot -= 1
+                    self.reset_highlight()
                     self.save_progress()
 
                 else:
