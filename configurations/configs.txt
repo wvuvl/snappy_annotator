@@ -1,3 +1,5 @@
-LIBRARY_PATH:<SET PATH TO IMAGE DIRECTORY HERE>
+LIBRARY_PATH:/home/mrkeaton/Documents/Datasets/unseparated_dataset_splits/1
+PREDICTIONS_PATH:/home/mrkeaton/Documents/Plant_Code/leaf_detector/tools/output/inference/coco_instances_results.json
+PREDICTION_THRESH:0.5
 DATABASE:PlantCLEF 2015
 DEF_LABEL:leaf

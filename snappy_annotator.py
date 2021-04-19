@@ -364,11 +364,12 @@ class App(anntoolkit.App):
 
     # Called once per frame. This is where things (including labels) are drawn on the image.
     def on_update(self):
-        self.text(self.k, 10, 30)
-        self.text("Species: %s" % self.get_PC15_species(), 10, 60)
-        self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 90)
-        self.text("Current label: {}".format(self.def_label), 10, 120)
-        self.text("Points count: %d" % len(self.annot), 10, 150)
+        self.text("Image %d / %d" % (self.iter + 1, len(self.paths)), 10, 30)
+        self.text(self.k, 10, 60)
+        self.text("Species: %s" % self.get_PC15_species(), 10, 90)
+        self.text("Metadata category: %s" % self.get_PC15_metadata_category(), 10, 120)
+        self.text("Current label: {}".format(self.def_label), 10, 150)
+        self.text("Points count: %d" % len(self.annot), 10, 180)
         self.text("%s" % str(self.initially_annotated), 10, 300)
         self.text("Images in dataset: %d" % len(self.paths), self.width - 10, 30, alignment=anntoolkit.Alignment.Right)
         self.text("Annotated images: %d" % self.annotated_images, self.width - 10, 60, alignment=anntoolkit.Alignment.Right)
