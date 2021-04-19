@@ -128,18 +128,14 @@ class App(anntoolkit.App):
         max_iou = 0
         adjusted_pb = [(int(pred_bbox[0]), int(pred_bbox[1])),
                        (int(pred_bbox[0] + pred_bbox[2]), int(pred_bbox[1] + pred_bbox[3]))]
-        print('current box: {}'.format(adjusted_pb))
         boxes = [self.prev_annot[i:i + 2] for i in range(0, len(self.prev_annot), 2)]
         for i, box in enumerate(boxes):
-            print('previous box: {}'.format(box))
             area_1 = (adjusted_pb[1][0] - adjusted_pb[0][0]) * (adjusted_pb[1][1] - adjusted_pb[0][1])
             area_2 = (box[1][0] - box[0][0]) * (box[1][1] - box[0][1])
             intersection = (min(adjusted_pb[1][0], box[1][0]) - max(adjusted_pb[0][0], box[0][0])) * \
                            (min(adjusted_pb[1][1], box[1][1]) - max(adjusted_pb[0][1], box[0][1]))
             iou = intersection / (area_1 + area_2 - intersection)
             max_iou = max(max_iou, iou)
-            print(iou)
-        print('Max IoU: {}'.format(max_iou))
         return max_iou
 
     def load_json_predictions(self):
@@ -600,7 +596,7 @@ class App(anntoolkit.App):
                 self.reset_highlight()
             elif key == anntoolkit.KeyBackspace or key == ' ':
                 if self.highlighted and len(self.annot) > 1:
-                    print(self.selected_annot)
+                    # print(self.selected_annot)
                     self.annot.pop(self.selected_annot * 2)
                     self.annot.pop(self.selected_annot * 2)
                     self.labels.pop(self.selected_annot)

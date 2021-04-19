@@ -425,6 +425,7 @@ class App(anntoolkit.App):
                     self.selected_box_height = self.annot[self.hovered_box * 2 + 1][1] - \
                                                self.annot[self.hovered_box * 2][1]
                     self.selected_annot = self.hovered_box
+                    self.highlighted = True
 
         # Upon release
         if not down:
@@ -529,6 +530,7 @@ class App(anntoolkit.App):
                 if self.highlighted and len(self.annot) > 1:
                     self.annot.pop(self.selected_annot * 2)
                     self.annot.pop(self.selected_annot * 2)
+                    self.labels.pop(self.selected_annot)
                     # self.selected_annot -= 1
                     self.reset_highlight()
                     self.save_progress()
