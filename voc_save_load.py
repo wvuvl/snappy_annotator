@@ -7,14 +7,13 @@ import colored
 import xml.etree.ElementTree as et
 from xml.dom import minidom
 
+import json
+
 error_msg = colored.fg("red") + colored.attr("bold")
 
 
 # Takes annotation and other data for current image and translates into a Pascal VOC-formatted .xml file.
-def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels):
-    p = filename.find('.')
-    with open(os.path.join(folder, filename[:p] + '_annotations.xml'), "w") as x:
-        pass
+def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels, file_extension, observation_rank):
 
     xml = et.Element('annotation')
     fold = et.SubElement(xml, 'folder')
@@ -24,9 +23,10 @@ def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels)
     src = et.SubElement(xml, 'source')
     et.SubElement(src, 'database').text = database
     sz = et.SubElement(xml, 'size')
-    et.SubElement(sz, 'width').text = str(dims[0])
-    et.SubElement(sz, 'height').text = str(dims[1])
+    et.SubElement(sz, 'width').text = str(dims[1])
+    et.SubElement(sz, 'height').text = str(dims[0])
     et.SubElement(sz, 'depth').text = str(dims[2])
+    et.SubElement(xml, 'observation_rank').text = observation_rank
 
     for i in range(0, int(len(annotations) / 2)):
         obj = et.SubElement(xml, 'object')
@@ -45,21 +45,22 @@ def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels)
     pretty_string = reparsed.toprettyxml(indent="\t")
 
     p = filename.find('.')
-    with open(os.path.join(folder, filename[:p] + '_annotations.xml'), 'w') as x:
+    with open(os.path.join(folder, filename[:p] + file_extension), 'w') as x:
         x.writelines(pretty_string)
 
 
 # Reads in an xml file, pulls all important information and returns it to program in usable data format
-# NOTE: For metadata, currently only reads in path and database,
+# NOTE: For metadata, currently only reads in path, image dimensions, and database,
 # and for each annotation, only reads label name and bounding box dimensions.
 # NOTE: This method will return the path and database metadata, but currently does nothing
 # with them. When saving, this information will be overwritten by the save function
-def load_from_voc_xml(file_pth, filename):
+def load_from_voc_xml(file_pth, filename, file_extension):
     path = ''
     database = ''
     annotation = []
     labels = []
-    filename = os.path.join(file_pth, str(filename[:filename.find('.')]) + '_annotations.xml')
+    xml_dims = ()
+    filename = os.path.join(file_pth, str(filename[:filename.find('.')]) + file_extension)
 
     if os.path.exists(filename):
         tree = et.parse(filename)
@@ -69,6 +70,12 @@ def load_from_voc_xml(file_pth, filename):
         src = root.find('source')
         if src is not None and src.find('database') is not None:
             database = src.find('database').text
+        if root.find('size') is not None:
+            size = root.find('size')
+            width = int(size.find('width').text)
+            height = int(size.find('height').text)
+            depth = int(size.find('depth').text)
+            xml_dims = (width, height, depth)
         for object in root.iter('object'):
             labels.append(object.find('name').text)
             annotation.append(
@@ -76,4 +83,4 @@ def load_from_voc_xml(file_pth, filename):
             annotation.append(
                 (int(object.find('bndbox').find('xmax').text), int(object.find('bndbox').find('ymax').text)))
 
-    return path, database, annotation, labels
+    return path, database, xml_dims, annotation, labels
