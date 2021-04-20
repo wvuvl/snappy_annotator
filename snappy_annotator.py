@@ -35,12 +35,13 @@ def load_configs():
                     default_lbl = line[10:]
                 if line.startswith('DB_CHANGED:'):
                     database_chgd = line[11:] == 'True'
-                if line.startswith('OBSERVATION_RANK:'):
-                    obs_rank = int(line[20:])
+                if line.startswith('SNAPPY_OBSERVATION_RANK:'):
+                    obs_rank = int(line[24:])
                     obs_rank_found = True
         if not obs_rank_found:
-            print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is'
-                  'currently un-set. Please update config file with line \'OBSERVATION_RANK:\', followed'
+            # Make this an error message that quits in the future
+            print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is '
+                  'currently un-set. Please update config file with line \'SNAPPY_OBSERVATION_RANK:\', followed '
                   'by corresponding number')
     return lib_path, db, default_lbl, database_chgd, obs_rank
 
