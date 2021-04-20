@@ -11,13 +11,14 @@ Annotation tool specifically built for training on Pascal VOC data. Built upon t
 - Change images: left key/right key (or 'a'/'d')
 - Go to next/previous _annotated_ image: '.'/','
 - Go to next/previous _un-annotated_ image: up key/down key (or 'w'/'s')
+- Create annotation: left click to start creating bounding box, drag mouse to opposite desired corner, then left click again
 - Set annotation class: '1'-'0' on keyboard (limit of 10/can be edited using 'configurations/classes.txt')
 - Select annotation: left click while hovering annotation
 - Select previous annotation: 'q'
 - Select next annotation: 'e'
-- Toggle labels (on screen) on/off: 't'
-- Remove selected annotation: backspace
+- Remove selected annotation: backspace/spacebar
 - Remove all annotations for image: delete
+- Toggle labels (on screen) on/off: 't'
 - Rotate annotations (useful for when transitioning from old tool) 
     - 'u' for width-wise (centered about image's width), CW rotation
     - 'i' for height-wise, CW rotation
@@ -33,9 +34,18 @@ To download, use the following lines of code:
 
 For quicker startup, default settings are saved within two config files in the 'configurations' folder: 'classes.txt and configs.txt'.
 
-1. In 'classes.txt', the default classes can be set, where the first line references key 1, the second references key 2, and so on, with the 10th referencing key 
-2. In 'configs.txt', the current default configurations are the path of the directory containing the files, the database to reference in the .xml files produced, and the default label when the program starts up. An additional line, "DB_CHANGED:<boolean>" (simply replace <boolean> with "True" or "False"), can be inserted to control whether or not file sorting needs to occur at the beginning of the function. The default, False, is to only sort if the corresponding "sorted_filenames_by_species.pkl" file exists in the root directory.
-    - For the current setup, species names are used to sort images. For faster startup, a function is used to save this sorted order. This can easily be removed in the code by deleting the line above the commented line in \_\_init\_\_ in snappy_annotator.py, and uncommenting the commented line.
+1. In 'classes.txt', the default classes can be set, where the first line references key 1, the second references key 2, and so on, with the 10th referencing key 0.
+2. In 'configs.txt', multiple keys can be used to configure various settings. These are the following:
+ - 'LIBRARY_PATH:' - defines path to the database directory containing the images and annotations
+ - 'DATABASE:' - the name of the database to be reflected in the metadata
+ - 'SORT_BY_SPECIES:' - whether or not to sort the database by species
+ - 'DB_CHANGED:' - Whether or not the database has been changed since last use. This value can be edited, or removing "sorted_filenames_by_species.pkl" from the root directory will do the same thing
+ - 'OBSERVATION_RANK:' - The rank of the observation, to be reflected in the metadata. This is useful if doing multiple passes during annotation with the object detection-assisted annotator or somehow determining that certain observations contain a lower fidelity
+
+The following entries are specific to the object detection-assisted annotation tool, snappy_OD_suggestions.py. As such, the values contained for them will not affect the standard snappy_annotator.py functionality.
+ - 'PREDICTIONS_PATH:' - Location of 'coco_instances_results.json' file, containing json predictions which can be used by snappy_OD_suggestions.py
+ - 'PREDICTION_THRESH:' - The threshold that bounding box prediction scores must be above in order to be considered
+ - 'IOU_THRESH:' - The intersection-over-union threshold that bounding box proposals must be below in relation to each current annotation in order to be considered
 
 ## Current Features
 
@@ -43,7 +53,7 @@ For quicker startup, default settings are saved within two config files in the '
 - Configurations can be saved to file to remove changing settings at startup each time
 - Keybindings for quick labeling using number keys - makes for less time per annotation
     - Note: code is set for using keys 1-0; current implementation uses keys 1-5
-- Lists important information - current file name, keybindings, and number of annotations - on screen
+- Lists important information - current file name/number, keybindings, and number of annotations - on screen
 - Annotations can be easily resized
 - Annotations can be easily moved
 - Annotations can be cycled through using keyboard presses, or simply selected using left click, in order to change previous labels quickly
