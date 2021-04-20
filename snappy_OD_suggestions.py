@@ -23,6 +23,7 @@ def load_configs():
     lib_path = ''
     db = 'Unknown'
     default_lbl = '1'
+    sort_by_species = True
     database_chgd = False
     prediction_pth = ''
     prediction_thrsh = 0.5
@@ -39,6 +40,8 @@ def load_configs():
                     db = line[9:]
                 if line.startswith('DEF_LABEL:'):
                     default_lbl = line[10:]
+                if line.startswith('SORT_BY_SPECIES:'):
+                    sort_by_species = line[16:].lower() == 'true'
                 if line.startswith('DB_CHANGED:'):
                     database_chgd = line[11:] == 'True'
                 if line.startswith('PREDICTIONS_PATH:'):
@@ -54,7 +57,7 @@ def load_configs():
             print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is '
                   'currently un-set. Please update config file with line \'OBSERVATION_RANK:\', followed '
                   'by corresponding number')
-    return lib_path, db, default_lbl, database_chgd, prediction_pth, prediction_thrsh, obs_rank, iou_thrsh
+    return lib_path, db, default_lbl, sort_by_species, database_chgd, prediction_pth, prediction_thrsh, obs_rank, iou_thrsh
 
 
 def load_classes():
@@ -79,7 +82,7 @@ class App(anntoolkit.App):
         super(App, self).__init__(title='Snappy Annotator - OD-Assisted Annotation')
 
         self.POINT_RADIUS = 6
-        self.path, self.database, self.def_label, self.db_changed,\
+        self.path, self.database, self.def_label, self.sort_by_species, self.db_changed,\
         self.pred_path, self.prediction_thresh, self.observation_rank, self.iou_thresh = load_configs()
         self.paths = []
         if os.path.exists(self.path):
@@ -89,8 +92,10 @@ class App(anntoolkit.App):
                                or x.endswith('.jpeg') or x.endswith('.png')]
         else:
             raise IOError(LIB_PATH_ERROR)
-        self.paths = self.sort_by_species()
-        # self.paths.sort()  # Use this line instead of above to sort by file name
+        if self.sort_by_species:
+            self.paths = self.sort_by_species()
+        else:
+            self.paths.sort()  # Use this line instead of above to sort by file name
         print("There are {} images in this dataset.".format(len(self.paths)))
         if os.path.exists(os.path.join('configurations', 'iter.txt')):
             with open(os.path.join('configurations', 'iter.txt'), 'r') as it:
