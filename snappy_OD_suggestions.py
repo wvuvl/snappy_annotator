@@ -48,14 +48,15 @@ def load_configs():
                     prediction_pth = line[17:]
                 if line.startswith('PREDICTION_THRESH:'):
                     prediction_thrsh = float(line[18:])
-                if line.startswith('OBSERVATION_RANK:'):
+                if line.startswith('OD_OBSERVATION_RANK:'):
                     obs_rank = int(line[20:])
                     obs_rank_found = True
                 if line.startswith('IOU_THRESH:'):
                     iou_thrsh = float(line[11])
         if not obs_rank_found:
+            # Make this an error message that quits in the future
             print('WARNING: Observation rank (used to refer to whether OD is used for suggestions) is '
-                  'currently un-set. Please update config file with line \'OBSERVATION_RANK:\', followed '
+                  'currently un-set. Please update config file with line \'OD_OBSERVATION_RANK:\', followed '
                   'by corresponding number')
     return lib_path, db, default_lbl, sort_species, database_chgd, prediction_pth, prediction_thrsh, obs_rank, iou_thrsh
 

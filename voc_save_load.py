@@ -26,7 +26,6 @@ def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels,
     et.SubElement(sz, 'width').text = str(dims[1])
     et.SubElement(sz, 'height').text = str(dims[0])
     et.SubElement(sz, 'depth').text = str(dims[2])
-    et.SubElement(xml, 'observation_rank').text = observation_rank
 
     for i in range(0, int(len(annotations) / 2)):
         obj = et.SubElement(xml, 'object')
@@ -34,6 +33,7 @@ def save_to_voc_xml(filename, folder, path, database, dims, annotations, labels,
         et.SubElement(obj, 'pose').text = 'Unspecified'
         et.SubElement(obj, 'truncated').text = '0'
         et.SubElement(obj, 'difficult').text = '0'
+        et.SubElement(obj, 'observation_rank').text = str(observation_rank)
         bndbox = et.SubElement(obj, 'bndbox')
         et.SubElement(bndbox, 'xmin').text = str(annotations[i * 2][0])
         et.SubElement(bndbox, 'ymin').text = str(annotations[i * 2][1])
