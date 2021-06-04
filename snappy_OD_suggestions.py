@@ -140,7 +140,11 @@ class App(anntoolkit.App):
             area_2 = (box[1][0] - box[0][0]) * (box[1][1] - box[0][1])
             intersection = (min(adjusted_pb[1][0], box[1][0]) - max(adjusted_pb[0][0], box[0][0])) * \
                            (min(adjusted_pb[1][1], box[1][1]) - max(adjusted_pb[0][1], box[0][1]))
-            iou = intersection / (area_1 + area_2 - intersection)
+            union = area_1 + area_2 - intersection
+            if union == 0:
+                iou = 0
+            else:
+                iou = intersection / union
             max_iou = max(max_iou, iou)
         return max_iou
 
